@@ -11,18 +11,52 @@ class MoviesController < ApplicationController
   end
 
   def index
-    case params[:sort]
+    @selected_checkbox = []
+    redirect_flag = false;
+    if params[:ratings] 
+      @selected_checkbox = params[:ratings].keys
+      session[:ratings] = params[:ratings] 
+    elsif session[:ratings]
+      @selected_checkbox = session[:ratings].keys   
+      redirect_flag = true
+    else
+      @selected_checkbox = Movie.distinct.pluck(:rating)    
+    end 
+    
+    sort_by = ''
+    if params[:sort]
+      session[:sort] = params[:sort] 
+      sort_by = params[:sort]
+    elsif session[:sort]
+      sort_by = session[:sort]
+      redirect_flag = true
+    end 
+   
+    params[:ratings] ?
+    @movies = Movie.with_ratings(params[:ratings].keys) 
+    : @movies = Movie.all
+    
+    case sort_by
       when 'title'
-        @movies = Movie.order('title ASC')
+      puts @selected_checkbox
+      if @selected_checkbox.length > 0
+         @movies = Movie.where(rating: @selected_checkbox).order('title ASC')
+      else
+         @movies = Movie.order('title ASC')
+      end 
         @title_hilite = 'hilite'
       when 'release'
-        @movies = Movie.order('release_date ASC')
+        if @selected_checkbox.length > 0
+          @movies = Movie.where(rating: @selected_checkbox).order('release_date ASC')
+        else
+          @movies = Movie.order('release_date ASC')
+        end
         @release_hilite = 'hilite'
-    else
-      params[:ratings] ?
-      @movies = Movie.with_ratings(params[:ratings].keys) 
-      : @movies = Movie.all
     end
+    
+    if redirect_flag
+      redirect_to movies_path(sort: sort_by, ratings: session[:ratings])
+    end 
     @all_ratings = Movie.all_ratings
   end
 
